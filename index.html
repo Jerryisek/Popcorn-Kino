@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pokladna Kino Retro</title>
+    
+    <!-- Externí knihovna pro tvorbu skutečného .xlsx souboru -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #0a0a0a;
+            --surface-color: #161616;
+            --surface-light: #222222;
+            --text-color: #f2f2f2;
+            --text-muted: #888888;
+            --primary: #c31a22;
+            --cash-color: #4caf50;
+            --card-color: #ffb300;
+            --danger: #9e9e9e;
+            --border: #2a2a2a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        
+        input, textarea {
+            -webkit-user-select: auto;
+            user-select: auto;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding-bottom: 120px;
+        }
+
+        header {
+            background-color: var(--primary);
+            padding: 15px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+        }
+        
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            color: #ffffff;
+            margin-bottom: 5px;
+        }
+
+        .header-inputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-group label {
+            font-size: 0.8rem;
+            color: #ffffff;
+            opacity: 0.8;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .input-group input {
+            background-color: #ffffff;
+            color: #000000;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: bold;
+            width: 100%;
+        }
+
+        .container {
+            padding: 20px 10px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .batch-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background-color: var(--surface-color);
+            border-left: 5px solid var(--primary);
+            border-radius: 4px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .batch-row .product-name {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-color);
+            letter-spacing: 1px;
+        }
+
+        .table-header {
+            display: grid;
+            grid-template-columns: 2.5fr 1fr 2fr 2fr;
+            gap: 8px;
+            padding: 12px 10px;
+            background-color: var(--surface-light);
+            border-radius: 4px 4px 0 0;
+            font-weight: 800;
+            text-align: center;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            text-transform: uppercase;
+        }
+
+        .table-header div:nth-child(1), .table-header div:nth-child(2) {
+            text-align: left;
+        }
+
+        .product-row {
+            display: grid;
+            grid-template-columns: 2.5fr 1fr 2fr 2fr;
+            gap: 8px;
+            padding: 15px 10px;
+            background-color: var(--surface-color);
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+        }
+
+        .product-row:last-child {
+            border-bottom: none;
+            border-radius: 0 0 4px 4px;
+        }
+
+        .product-name {
+            font-size: 1rem;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        .product-price {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 4px;
+            border: none;
+            font-size: 1.8rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            transition: transform 0.1s, opacity 0.2s;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+            opacity: 0.8;
+        }
+
+        .btn-minus { background-color: var(--danger); }
+        .btn-plus-cash { background-color: var(--cash-color); }
+        .btn-plus-card { background-color: var(--card-color); color: #000; }
+        .btn-plus-batch { background-color: var(--text-color); color: var(--bg-color); }
+
+        .count-display {
+            font-size: 1.3rem;
+            font-weight: bold;
+            min-width: 25px;
+            text-align: center;
+            font-family: monospace;
+        }
+
+        .extra-row { background-color: #1a1010; border-left: 3px solid var(--primary); }
+        
+        .extra-input {
+            width: 100%;
+            max-width: 60px;
+            padding: 8px 4px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 1rem;
+            text-align: center;
+            font-family: monospace;
+        }
+
+        footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: var(--surface-light);
+            border-top: 3px solid var(--primary);
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.8);
+            z-index: 100;
+        }
+
+        .totals {
+            display: flex;
+            gap: 20px;
+        }
+
+        .total-block {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .total-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .total-value-cash {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--cash-color);
+            font-family: monospace;
+        }
+
+        .total-value-card {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--card-color);
+            font-family: monospace;
+        }
+
+        .btn-finish {
+            background-color: var(--primary);
+            color: #ffffff;
+            border: none;
+            padding: 12px 20px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal {
+            background-color: var(--surface-color);
+            padding: 25px;
+            border-radius: 8px;
+            width: 95%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+
+        .modal h2 {
+            margin-bottom: 20px;
+            text-align: center;
+            color: var(--text-color);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 800;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 10px;
+        }
+
+        .summary-section {
+            margin-bottom: 15px;
+            padding: 12px;
+            background-color: var(--bg-color);
+            border-radius: 4px;
+            border-left: 4px solid var(--border);
+        }
+
+        .summary-section h3 {
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 1rem;
+            font-family: monospace;
+        }
+
+        .modal-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 4px;
+            border: none;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .btn-close { background-color: var(--surface-light); color: white; }
+        .btn-reset { background-color: #555; color: white; }
+        .btn-copy { background-color: #f57c00; color: white; }
+        .btn-excel { background-color: #1a73e8; color: white; }
+
+        .raw-data-box {
+            display: none;
+            margin-top: 15px;
+        }
+
+        .raw-data-box textarea {
+            width: 100%;
+            height: 150px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--primary);
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            border-radius: 4px;
+        }
+
+        /* Autosave indicator */
+        .autosave-badge {
+            position: fixed;
+            top: 15px;
+            right: 20px;
+            background-color: var(--cash-color);
+            color: #000;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+
+        @media (max-width: 480px) {
+            .table-header { font-size: 0.7rem; padding: 10px 2px; gap: 4px; }
+            .product-row { padding: 10px 2px; gap: 4px; }
+            .product-name { font-size: 0.85rem; }
+            .product-price { font-size: 0.85rem; }
+            .btn { width: 32px; height: 32px; font-size: 1.4rem; border-radius: 4px; }
+            .controls { gap: 4px; }
+            .count-display { min-width: 18px; font-size: 1.1rem; }
+            .extra-input { font-size: 0.9rem; padding: 6px 2px; }
+            .totals { gap: 10px; }
+            .total-value-cash, .total-value-card { font-size: 1.2rem; }
+            .btn-finish { padding: 10px 12px; font-size: 0.9rem; }
+            .autosave-badge { top: 5px; right: 5px; font-size: 0.6rem; }
+        }
+
+        noscript .js-warning {
+            display: block;
+            position: fixed;
+            top: 0; left: 0; width: 100%;
+            background-color: #ff0000;
+            color: #ffffff;
+            text-align: center;
+            padding: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            z-index: 99999;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="autosave-badge" id="autosave-badge">Uloženo ✓</div>
+
+    <noscript>
+        <div class="js-warning">
+            ⚠️ Otevřel jsi soubor v prohlížeči, který blokuje JavaScript.<br>
+            Tlačítka zde nebudou fungovat. Musíš soubor otevřít přímo v prohlížeči Google Chrome nebo Safari.
+        </div>
+    </noscript>
+
+    <header>
+        <div class="header-title">Kino Retro Zábřeh</div>
+        <div class="header-inputs">
+            <div class="input-group">
+                <label>Jméno na směně</label>
+                <input type="text" id="input-name" placeholder="Zadej jméno" oninput="saveDataLocally()">
+            </div>
+            <div class="input-group">
+                <label>Datum</label>
+                <input type="date" id="input-date" onchange="saveDataLocally()">
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        
+        <div class="batch-row">
+            <div class="product-name">🍿 POČET DÁVEK</div>
+            <div class="controls">
+                <button class="btn btn-minus" onclick="updateBatches(-1)">-</button>
+                <div class="count-display" id="batches-count">0</div>
+                <button class="btn btn-plus-batch" onclick="updateBatches(1)">+</button>
+            </div>
+        </div>
+
+        <div class="table-header">
+            <div>PRODUKT</div>
+            <div>CENA</div>
+            <div style="color: var(--cash-color);">HOTOVĚ</div>
+            <div style="color: var(--card-color);">KARTOU</div>
+        </div>
+
+        <div id="product-list"></div>
+        
+        <div class="product-row extra-row">
+            <div class="product-name">NĚCO EXTRA</div>
+            <div class="product-price">
+                <input type="number" id="extra-price" class="extra-input" placeholder="Cena">
+            </div>
+            <div class="controls">
+                <button class="btn btn-minus" onclick="updateExtra('cash', -1)">-</button>
+                <div class="count-display" id="extra-cash-count">0</div>
+                <button class="btn btn-plus-cash" onclick="updateExtra('cash', 1)">+</button>
+            </div>
+            <div class="controls">
+                <button class="btn btn-minus" onclick="updateExtra('card', -1)">-</button>
+                <div class="count-display" id="extra-card-count">0</div>
+                <button class="btn btn-plus-card" onclick="updateExtra('card', 1)">+</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="totals">
+            <div class="total-block">
+                <span class="total-label">HOTOVĚ</span>
+                <span class="total-value-cash" id="total-cash">0 Kč</span>
+            </div>
+            <div class="total-block">
+                <span class="total-label">KARTOU</span>
+                <span class="total-value-card" id="total-card-items">0 ks</span>
+            </div>
+        </div>
+        <button class="btn-finish" onclick="showSummary()">ZÁVĚRKA</button>
+    </footer>
+
+    <div class="modal-overlay" id="modal">
+        <div class="modal">
+            <h2>Závěrka Směny</h2>
+            
+            <div class="summary-section" style="border-left-color: var(--primary);">
+                <h3 style="color: var(--text-color);">Vyrobeno popcornu</h3>
+                <div class="summary-item" style="font-weight: bold; font-size: 1.2rem;">
+                    <span>CELKEM DÁVEK:</span>
+                    <span style="color: var(--text-color);" id="summary-batches">0</span>
+                </div>
+            </div>
+
+            <div class="summary-section" style="border-left-color: var(--cash-color);">
+                <h3 style="color: var(--cash-color);">Přehled HOTOVĚ</h3>
+                <div id="summary-cash-items"></div>
+                <hr style="border: 1px solid var(--border); margin: 10px 0;">
+                <div class="summary-item" style="font-weight: 800; font-size: 1.2rem;">
+                    <span>CELKEM HOTOVĚ:</span>
+                    <span style="color: var(--cash-color);" id="summary-cash-total">0 Kč</span>
+                </div>
+            </div>
+
+            <div class="summary-section" style="border-left-color: var(--card-color);">
+                <h3 style="color: var(--card-color);">Přehled KARTOU</h3>
+                <div id="summary-card-items"></div>
+                <hr style="border: 1px solid var(--border); margin: 10px 0;">
+                <div class="summary-item" style="font-weight: 800; font-size: 1.2rem;">
+                    <span>CELKEM POLOŽEK:</span>
+                    <span style="color: var(--card-color);" id="summary-card-total">0 ks</span>
+                </div>
+            </div>
+
+            <div class="modal-buttons">
+                <div class="btn-row">
+                    <button class="btn-excel" onclick="generateRealExcel()">📊 Stáhnout Excel (.xlsx)</button>
+                    <button class="btn-copy" onclick="copyToClipboard()">📋 Rychle Kopírovat</button>
+                </div>
+                
+                <div class="raw-data-box" id="raw-data-box">
+                    <p style="font-size: 0.8rem; margin-bottom: 5px; color: var(--card-color);">Zkopíruj všechen text níže a vlož ho do Google Tabulek:</p>
+                    <textarea id="raw-export-text" readonly></textarea>
+                </div>
+
+                <div class="btn-row" style="margin-top: 10px;">
+                    <button class="btn-close" onclick="closeSummary()">Zpět k práci</button>
+                    <button class="btn-reset" onclick="resetShift()">Vymazat směnu</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.onerror = function(msg, url, line) {
+            alert("Chyba aplikace:\n" + msg);
+            return false;
+        };
+
+        var products = [
+            { id: 'p1', name: 'SÁČEK 1,4 l', price: 50 },
+            { id: 'p2', name: 'KRABIČKA 2,5 l', price: 70 },
+            { id: 'p3', name: 'KBELÍK 2,5 l', price: 70 },
+            { id: 'p4', name: 'KBELÍK 5 l', price: 140 },
+            { id: 'p5', name: 'PŘÍCHUŤ', price: 10 },
+            { id: 'p6', name: 'SLADKÝ SÁČEK', price: 50 },
+            { id: 'p7', name: 'BOPCORN', price: 80 },
+            { id: 'p8', name: 'OBALY (NE 5 l)', price: 15 },
+            { id: 'p9', name: 'OBALY (sáčky)', price: 2 },
+            { id: 'p10', name: 'NÁPOJE', price: 35 },
+            { id: 'p11', name: 'PEPSI', price: 40 }
+        ];
+
+        var state = {};
+        var batchesCount = 0;
+        var saveTimeout = null;
+        
+        function init() {
+            if (!loadDataLocally()) {
+                var dateInput = document.getElementById('input-date');
+                if(dateInput) {
+                    var today = new Date();
+                    var y = today.getFullYear();
+                    var m = ("0" + (today.getMonth() + 1)).slice(-2);
+                    var d = ("0" + today.getDate()).slice(-2);
+                    dateInput.value = y + "-" + m + "-" + d;
+                }
+
+                for(var i=0; i<products.length; i++) {
+                    state[products[i].id] = { cashCount: 0, cardCount: 0 };
+                }
+                state.extra = { cashItems: [], cardItems: [] };
+                batchesCount = 0;
+            }
+
+            document.getElementById('batches-count').innerText = batchesCount;
+            document.getElementById('extra-cash-count').innerText = state.extra.cashItems.length;
+            document.getElementById('extra-card-count').innerText = state.extra.cardItems.length;
+            
+            renderProducts();
+            updateTotals();
+        }
+
+        function loadDataLocally() {
+            try {
+                var savedData = localStorage.getItem('kinoRetroState');
+                if (savedData) {
+                    var parsed = JSON.parse(savedData);
+                    state = parsed.state || {};
+                    batchesCount = parsed.batchesCount || 0;
+                    
+                    var nameInput = document.getElementById('input-name');
+                    var dateInput = document.getElementById('input-date');
+                    if(parsed.name && nameInput) nameInput.value = parsed.name;
+                    if(parsed.date && dateInput) dateInput.value = parsed.date;
+
+                    for(var i=0; i<products.length; i++) {
+                        if(!state[products[i].id]) {
+                            state[products[i].id] = { cashCount: 0, cardCount: 0 };
+                        }
+                    }
+                    if(!state.extra) state.extra = { cashItems: [], cardItems: [] };
+                    return true;
+                }
+            } catch (e) {
+                console.error("Chyba při načítání lokálních dat:", e);
+            }
+            return false;
+        }
+
+        function saveDataLocally() {
+            var nameInput = document.getElementById('input-name');
+            var dateInput = document.getElementById('input-date');
+            
+            var dataToSave = {
+                state: state,
+                batchesCount: batchesCount,
+                name: nameInput ? nameInput.value : "",
+                date: dateInput ? dateInput.value : ""
+            };
+            
+            try {
+                localStorage.setItem('kinoRetroState', JSON.stringify(dataToSave));
+                showAutosaveBadge();
+            } catch (e) {
+                console.error("Chyba při ukládání:", e);
+            }
+        }
+
+        function showAutosaveBadge() {
+            var badge = document.getElementById('autosave-badge');
+            if(badge) {
+                badge.style.opacity = 1;
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(function() {
+                    badge.style.opacity = 0;
+                }, 1500);
+            }
+        }
+
+        function renderProducts() {
+            var list = document.getElementById('product-list');
+            list.innerHTML = '';
+
+            for(var i=0; i<products.length; i++) {
+                var p = products[i];
+                var row = document.createElement('div');
+                row.className = 'product-row';
+                
+                var innerHTMLStr = "";
+                innerHTMLStr += "<div class='product-name'>" + p.name + "</div>";
+                innerHTMLStr += "<div class='product-price'>" + p.price + " Kč</div>";
+                
+                innerHTMLStr += "<div class='controls'>";
+                innerHTMLStr += "<button class='btn btn-minus' onclick=\"updateItem('" + p.id + "', 'cash', -1)\">-</button>";
+                innerHTMLStr += "<div class='count-display' id='" + p.id + "-cash-count'>" + state[p.id].cashCount + "</div>";
+                innerHTMLStr += "<button class='btn btn-plus-cash' onclick=\"updateItem('" + p.id + "', 'cash', 1)\">+</button>";
+                innerHTMLStr += "</div>";
+                
+                innerHTMLStr += "<div class='controls'>";
+                innerHTMLStr += "<button class='btn btn-minus' onclick=\"updateItem('" + p.id + "', 'card', -1)\">-</button>";
+                innerHTMLStr += "<div class='count-display' id='" + p.id + "-card-count'>" + state[p.id].cardCount + "</div>";
+                innerHTMLStr += "<button class='btn btn-plus-card' onclick=\"updateItem('" + p.id + "', 'card', 1)\">+</button>";
+                innerHTMLStr += "</div>";
+
+                row.innerHTML = innerHTMLStr;
+                list.appendChild(row);
+            }
+        }
+
+        function updateBatches(change) {
+            if (batchesCount + change >= 0) {
+                batchesCount += change;
+                document.getElementById('batches-count').innerText = batchesCount;
+                saveDataLocally();
+            }
+        }
+
+        function updateItem(id, type, change) {
+            if (type === 'cash') {
+                if (state[id].cashCount + change >= 0) {
+                    state[id].cashCount += change;
+                    document.getElementById(id + "-cash-count").innerText = state[id].cashCount;
+                }
+            } else if (type === 'card') {
+                if (state[id].cardCount + change >= 0) {
+                    state[id].cardCount += change;
+                    document.getElementById(id + "-card-count").innerText = state[id].cardCount;
+                }
+            }
+            updateTotals();
+            saveDataLocally();
+        }
+
+        function updateExtra(type, change) {
+            var priceInput = document.getElementById('extra-price');
+            var price = parseInt(priceInput.value) || 0;
+
+            if (change > 0) {
+                if (price <= 0 && type === 'cash') {
+                    alert("Zadej platnou cenu pro 'Něco extra' před přidáním hotovosti.");
+                    return;
+                }
+                if (type === 'cash') state.extra.cashItems.push(price);
+                else state.extra.cardItems.push(price);
+            } else {
+                if (type === 'cash' && state.extra.cashItems.length > 0) state.extra.cashItems.pop();
+                else if (type === 'card' && state.extra.cardItems.length > 0) state.extra.cardItems.pop();
+            }
+
+            document.getElementById('extra-cash-count').innerText = state.extra.cashItems.length;
+            document.getElementById('extra-card-count').innerText = state.extra.cardItems.length;
+            if(change > 0) priceInput.value = '';
+            
+            updateTotals();
+            saveDataLocally();
+        }
+
+        function updateTotals() {
+            var totalCash = 0;
+            var totalCardItems = 0;
+
+            for(var i=0; i<products.length; i++) {
+                var p = products[i];
+                totalCash += state[p.id].cashCount * p.price;
+                totalCardItems += state[p.id].cardCount;
+            }
+
+            for(var j=0; j<state.extra.cashItems.length; j++) {
+                totalCash += state.extra.cashItems[j];
+            }
+            totalCardItems += state.extra.cardItems.length;
+
+            document.getElementById('total-cash').innerText = totalCash + " Kč";
+            document.getElementById('total-card-items').innerText = totalCardItems + " ks";
+        }
+
+        function showSummary() {
+            var totalCash = 0;
+            var totalCardItems = 0;
+            var cashRowsHTML = "";
+            var cardRowsHTML = "";
+
+            for(var i=0; i<products.length; i++) {
+                var p = products[i];
+                if (state[p.id].cashCount > 0) {
+                    var sum = state[p.id].cashCount * p.price;
+                    totalCash += sum;
+                    cashRowsHTML += "<div class='summary-item'><span>" + state[p.id].cashCount + "x " + p.name + "</span><span>" + sum + " Kč</span></div>";
+                }
+                if (state[p.id].cardCount > 0) {
+                    totalCardItems += state[p.id].cardCount;
+                    cardRowsHTML += "<div class='summary-item'><span>" + state[p.id].cardCount + "x " + p.name + "</span><span>" + state[p.id].cardCount + " ks</span></div>";
+                }
+            }
+            
+            if (state.extra.cashItems.length > 0) {
+                var extraSum = 0;
+                for(var j=0; j<state.extra.cashItems.length; j++) extraSum += state.extra.cashItems[j];
+                totalCash += extraSum;
+                cashRowsHTML += "<div class='summary-item'><span>" + state.extra.cashItems.length + "x NĚCO EXTRA</span><span>" + extraSum + " Kč</span></div>";
+            }
+
+            if (state.extra.cardItems.length > 0) {
+                totalCardItems += state.extra.cardItems.length;
+                cardRowsHTML += "<div class='summary-item'><span>" + state.extra.cardItems.length + "x NĚCO EXTRA</span><span>" + state.extra.cardItems.length + " ks</span></div>";
+            }
+
+            document.getElementById('summary-batches').innerText = batchesCount;
+            document.getElementById('summary-cash-items').innerHTML = cashRowsHTML || "<div style='color:var(--text-muted)'>Žádné položky</div>";
+            document.getElementById('summary-card-items').innerHTML = cardRowsHTML || "<div style='color:var(--text-muted)'>Žádné položky</div>";
+            document.getElementById('summary-cash-total').innerText = totalCash + " Kč";
+            document.getElementById('summary-card-total').innerText = totalCardItems + " ks";
+            
+            document.getElementById('raw-data-box').style.display = 'none';
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        function closeSummary() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        function resetShift() {
+            if (confirm("OPRAVDU VYMAZAT? Smaže se tím aktuálně rozečtená směna a vyčistí se paměť.")) {
+                try {
+                    localStorage.removeItem('kinoRetroState');
+                } catch(e) {}
+                
+                document.getElementById('input-name').value = "";
+                
+                init();
+                document.getElementById('extra-cash-count').innerText = "0";
+                document.getElementById('extra-card-count').innerText = "0";
+                closeSummary();
+            }
+        }
+
+        function generateRealExcel() {
+            if (typeof XLSX === 'undefined') {
+                alert("Knihovna pro generování Excelu se nenačetla. Zkontroluj, zda jsi připojen k internetu.");
+                return;
+            }
+
+            var name = document.getElementById('input-name').value || "Neuvedeno";
+            var date = document.getElementById('input-date').value || new Date().toISOString().split('T')[0];
+
+            var ws_data = [];
+
+            ws_data.push(["ZÁZNAM O SMĚNĚ - KINO RETRO ZÁBŘEH"]);
+            ws_data.push(["Datum:", date]);
+            ws_data.push(["Pracovník:", name]);
+            ws_data.push([]);
+
+            ws_data.push(["VYROBENO", "Množství"]);
+            ws_data.push(["POČET DÁVEK", batchesCount]);
+            ws_data.push([]);
+
+            ws_data.push(["HOTOVOST", "Množství", "Cena/ks (Kč)", "Celkem (Kč)"]);
+            var totalCash = 0;
+            for(var i=0; i<products.length; i++) {
+                var p = products[i];
+                if (state[p.id].cashCount > 0) {
+                    var sum = state[p.id].cashCount * p.price;
+                    totalCash += sum;
+                    ws_data.push([p.name, state[p.id].cashCount, p.price, sum]);
+                }
+            }
+            if (state.extra.cashItems.length > 0) {
+                for(var k=0; k<state.extra.cashItems.length; k++) {
+                    var price = state.extra.cashItems[k];
+                    totalCash += price;
+                    ws_data.push(["NĚCO EXTRA", 1, price, price]);
+                }
+            }
+            ws_data.push(["CELKEM HOTOVOST", "", "", totalCash]);
+            ws_data.push([]);
+
+            ws_data.push(["KARTA", "Množství (ks)"]);
+            var totalCard = 0;
+            for(var j=0; j<products.length; j++) {
+                var p2 = products[j];
+                if (state[p2.id].cardCount > 0) {
+                    totalCard += state[p2.id].cardCount;
+                    ws_data.push([p2.name, state[p2.id].cardCount]);
+                }
+            }
+            if (state.extra.cardItems.length > 0) {
+                totalCard += state.extra.cardItems.length;
+                ws_data.push(["NĚCO EXTRA", state.extra.cardItems.length]);
+            }
+            ws_data.push(["CELKEM POLOŽEK KARTOU", totalCard]);
+
+            var wb = XLSX.utils.book_new();
+            var ws = XLSX.utils.aoa_to_sheet(ws_data);
+            
+            ws['!cols'] = [{wch: 30}, {wch: 15}, {wch: 15}, {wch: 15}];
+            
+            XLSX.utils.book_append_sheet(wb, ws, "Závěrka");
+            XLSX.writeFile(wb, "Zaverka_" + date + ".xlsx");
+        }
+
+        function generateTSV() {
+            var name = document.getElementById('input-name').value || "Neuvedeno";
+            var date = document.getElementById('input-date').value || "Neznamo";
+            
+            var tsv = "ZÁZNAM O SMĚNĚ\nDatum:\t" + date + "\nPracovník:\t" + name + "\n\n";
+            
+            tsv += "VYROBENO\nPoložka\tMnožství\nPOČET DÁVEK\t" + batchesCount + "\n\n";
+
+            tsv += "HOTOVOST\nPoložka\tMnožství\tCena/ks\tCelkem\n";
+            var totalCash = 0;
+            for(var i=0; i<products.length; i++) {
+                var p = products[i];
+                if (state[p.id].cashCount > 0) {
+                    var sum = state[p.id].cashCount * p.price;
+                    totalCash += sum;
+                    tsv += p.name + "\t" + state[p.id].cashCount + "\t" + p.price + "\t" + sum + "\n";
+                }
+            }
+            if (state.extra.cashItems.length > 0) {
+                for(var k=0; k<state.extra.cashItems.length; k++) {
+                    var price = state.extra.cashItems[k];
+                    totalCash += price;
+                    tsv += "NĚCO EXTRA\t1\t" + price + "\t" + price + "\n";
+                }
+            }
+            tsv += "CELKEM HOTOVOST\t\t\t" + totalCash + "\n\n";
+
+            tsv += "KARTA\nPoložka\tMnožství (ks)\n";
+            var totalCard = 0;
+            for(var j=0; j<products.length; j++) {
+                var p2 = products[j];
+                if (state[p2.id].cardCount > 0) {
+                    totalCard += state[p2.id].cardCount;
+                    tsv += p2.name + "\t" + state[p2.id].cardCount + "\n";
+                }
+            }
+            if (state.extra.cardItems.length > 0) {
+                totalCard += state.extra.cardItems.length;
+                tsv += "NĚCO EXTRA\t" + state.extra.cardItems.length + "\n";
+            }
+            tsv += "CELKEM POLOŽEK KARTOU\t" + totalCard + "\n";
+            
+            return tsv;
+        }
+
+        function copyToClipboard() {
+            var text = generateTSV();
+            if (navigator && navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(function() {
+                    alert("Úspěšně zkopírováno! Nyní to můžeš vložit do Google Tabulek.");
+                }).catch(function() {
+                    showRawData();
+                });
+            } else {
+                showRawData();
+            }
+        }
+
+        function showRawData() {
+            var box = document.getElementById('raw-data-box');
+            var txt = document.getElementById('raw-export-text');
+            box.style.display = 'block';
+            txt.value = generateTSV();
+            txt.focus();
+            txt.select();
+        }
+
+        window.onload = function() {
+            init();
+        };
+    </script>
+</body>
+</html>
